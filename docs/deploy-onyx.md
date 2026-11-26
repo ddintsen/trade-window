@@ -16,7 +16,7 @@ over afterwards. Three confirmations in Adena:
 2. Register the name (`nym-tradewindow001` is filled in), or choose the
    address instead.
 3. Publish rooms, then board. Onyx parks new code until its reviewer enables
-   it, usually within a few blocks; the page waits and shows each realm as
+   it. Check the activation time in the [Onyx package approval service](https://gpas.onyx.testnets.gno.land/). The page shows each realm as
    live. Publishing both locks about 8 GNOT of storage deposit and costs well
    under 1 GNOT in fees (rooms used 98.6 million gas on a local chain with the
    same parameters; the page allows 200 million).
@@ -82,8 +82,8 @@ open transfers. What works there works on mainnet.
    scripts/gno/deploy.sh tradewindow nym-tradewindow001 onyx
    ```
 
-   Onyx parks new packages until its approval oracle enables them, usually
-   within a few blocks; the script waits and then prints the site settings.
+   Onyx parks new packages until its approval oracle enables them.
+   The script prints the site settings after both realms become callable.
    Running it again skips a realm that is already deployed.
 
 3. Give the site the five values the script printed, in the Vercel project
@@ -143,7 +143,7 @@ Messages stay 30 days after a room's last one, at most 200 per room.
    свой аккаунт и переключить его на Onyx, когда страница попросит.
 2. Зарегистрировать имя (`nym-tradewindow001` уже вписано) или выбрать адрес.
 3. Выложить rooms, потом board. Onyx держит новый код, пока проверяющий его
-   не включит, обычно несколько блоков; страница ждёт и показывает, что реалм
+   не включит. Время активации показывает [сервис Onyx](https://gpas.onyx.testnets.gno.land/); страница показывает, когда реалм
    работает. Обе выкладки блокируют около 8 GNOT залога за хранение и стоят
    меньше 1 GNOT комиссий.
 4. Страница покажет админа и казначея («you») и пять настроек сайта: вписать
@@ -184,8 +184,8 @@ trade-window-final для Production и Preview, войти в Upstash, созд
    `scripts/gno/register-name.sh tradewindow nym-tradewindow001 onyx`
 2. Выложить оба реалма:
    `scripts/gno/deploy.sh tradewindow nym-tradewindow001 onyx`
-   Onyx включает новые пакеты через несколько блоков; скрипт дождётся и
-   напечатает пять настроек для сайта. Повторный запуск пропустит то, что уже
+   Onyx держит новые пакеты в ожидании проверки. Скрипт напечатает пять
+   настроек сайта, когда оба реалма доступны. Повторный запуск пропустит то, что уже
    выложено.
 3. Вписать эти пять значений в Vercel (Settings, Environment Variables, для
    Production и Preview) и передеплоить сайт.

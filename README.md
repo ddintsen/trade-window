@@ -2,11 +2,11 @@
 
 Two people agree on a trade, lock the same offer, and exchange GNOT, GRC20 tokens, or NFTs in one transaction on Gno.land.
 
-[Open a practice room](https://tradewindow.xyz/practice) · [Watch the 66-second walkthrough](https://dintsen.agency/assets/videos/trade-window/walkthrough.mp4) · [Read the contract](docs/CONTRACT.md)
+[View rooms on Onyx](https://onyx.testnets.gno.land/r/nym-tradewindow001/rooms) · [Open a practice room](https://tradewindow.xyz/practice) · [Watch the 66-second walkthrough](https://dintsen.agency/assets/videos/trade-window/walkthrough.mp4) · [Read the contract](docs/CONTRACT.md)
 
 [![Trade Window practice room showing both sides of an exchange before confirmation](docs/media/trade-window-walkthrough.png)](https://dintsen.agency/assets/videos/trade-window/walkthrough.mp4)
 
-The public app has a wallet-free practice room. The rooms and board realms have been exercised with transactions on a local Gno chain. An Onyx deployment is pending.
+The public app has a wallet-free practice room. The rooms and board realms have been exercised with transactions on a local Gno chain. The rooms realm is live on Onyx. The board deployment is pending.
 
 ## How a trade works
 
@@ -84,8 +84,8 @@ The script prints the five `NEXT_PUBLIC_*` values to set for the site.
 ## Status
 
 - Realms: complete, tested, scanned with the gno audit pattern harness, and
-  exercised with real transactions on a local chain. Waiting for the owner's
-  deploy on the Onyx testnet.
+  exercised with real transactions on a local chain. Rooms are live on Onyx.
+  The board realm is awaiting publication.
 - Site: complete for rooms, practice rooms, the board, private requests, and
   the how-it-works and contract pages.
 - Names: the realms live under the gno.land domain at
