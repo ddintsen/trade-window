@@ -1,5 +1,7 @@
 # Trade Window
 
+**Verified on Onyx.** Two test wallets settled Room 1 by locking version 4. [See the swap receipts, balances, and gas](docs/ONYX-EVIDENCE.md).
+
 Two people agree on a trade, lock the same offer, and exchange GNOT, GRC20 tokens, or NFTs in one transaction on Gno.land.
 
 [View rooms on Onyx](https://onyx.testnets.gno.land/r/nym-tradewindow001/rooms) · [View board on Onyx](https://onyx.testnets.gno.land/r/nym-tradewindow001/board) · [Open a practice room](https://tradewindow.xyz/practice) · [Watch the 66-second walkthrough](https://dintsen.agency/assets/videos/trade-window/walkthrough.mp4) · [Read the contract](docs/CONTRACT.md)
