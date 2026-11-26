@@ -449,7 +449,12 @@ export function TradeWindow({ kind, id }: { kind: VenueKind; id: number }) {
       }
     >
       {takeBack && takeMeta && role === left && open && takeBack.kind === "nft" && (
-        <div ref={(el) => el?.scrollIntoView({ block: "nearest" })} className="flex scroll-mb-40 flex-col gap-4 notch bg-ground/55 p-4 sm:p-5">
+        <div
+          ref={(el) => {
+            el?.scrollIntoView({ block: "nearest" });
+          }}
+          className="flex scroll-mb-40 flex-col gap-4 notch bg-ground/55 p-4 sm:p-5"
+        >
           <p className="text-[15px] font-semibold">Take {assetLabel(takeMeta)} back?</p>
           <div className="flex flex-wrap gap-2">
             <Button

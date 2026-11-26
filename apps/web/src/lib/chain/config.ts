@@ -38,7 +38,7 @@ export const boardDeployed = realms.board !== "";
 export const WUGNOT_KEY = "gno.land/r/gnoland/wugnot.wugnot";
 export const WUGNOT_PATH = "gno.land/r/gnoland/wugnot";
 
-export const REPO_URL = "https://github.com/dintsen/trade-window";
+export const REPO_URL = "https://github.com/ddintsen/trade-window";
 
 /** gnoweb URL of a realm path, optionally with a Render path. */
 export function gnowebUrl(pkgPath: string, renderPath = ""): string {

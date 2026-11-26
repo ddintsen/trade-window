@@ -60,7 +60,9 @@ export function AmountPicker({
   const preset = (part: bigint) => setValue(formatUnits(part, meta.decimals).replace(/,/g, ""));
   // Opened under an item, the form scrolls into view clear of the docked trade bar.
   const form = useRef<HTMLFormElement>(null);
-  useEffect(() => form.current?.scrollIntoView({ block: "nearest" }), []);
+  useEffect(() => {
+    form.current?.scrollIntoView({ block: "nearest" });
+  }, []);
 
   return (
     <form

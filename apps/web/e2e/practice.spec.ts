@@ -38,6 +38,14 @@ async function putIn(page: Page) {
 const COIN = /^[\d,.]+ GNOT in your wallet$/;
 
 test("a practice trade completes on the version both sides got ready on", async ({ page }) => {
+  await page.addInitScript(() => {
+    // Exercise the promise return value even in browsers with the older API.
+    const scrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (options) {
+      scrollIntoView.call(this, options);
+      return Promise.resolve();
+    };
+  });
   await openTrade(page);
 
   // The partner sits down and puts 25 wrapped GNOT and a lantern NFT in their offer.
