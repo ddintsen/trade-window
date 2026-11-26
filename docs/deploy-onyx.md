@@ -30,6 +30,21 @@ The page sends exactly the repository's realm files without their tests
 `scripts/gno/deploy.sh`. `apps/web/e2e/launch.spec.ts` runs the whole page on
 a local chain.
 
+## If Onyx reports a transaction decode error
+
+Onyx requires canonical transaction encoding as of November 17, 2026. Clients
+built against Gno versions before 1.7.1 can return `tx decode error` before the
+package runs. Use a signer built with Gno 1.7.1 or later. Gno MCP 0.13.1 builds
+against Gno 1.8.0.
+
+- [Onyx release and client requirements](https://github.com/gnolang/gno/releases/tag/v1.8.0-rc.1)
+- [Gno MCP 0.13.1 release](https://github.com/gnoverse/gno-mcp/releases/tag/v0.13.1)
+
+To keep `nym-tradewindow001` under the project owner, use the
+[Trade Window launch page](https://tradewindow.xyz/launch) with Adena on
+Onyx. The wallet signs under the owner's account and the page checks that
+each realm becomes callable before it reports success.
+
 ## From the command line
 
 Onyx (`onyx-1`) runs the same code as gno.land mainnet, with a faucet and
