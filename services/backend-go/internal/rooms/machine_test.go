@@ -60,7 +60,9 @@ func TestRoomStateMachine(t *testing.T) {
 	}
 
 	// Test cancel
-	r.Cancel()
+	if err := r.Cancel("party-a"); err != nil {
+		t.Fatalf("cancel ready room: %v", err)
+	}
 	if r.State != StateCancelled {
 		t.Fatalf("expected cancelled, got %s", r.State)
 	}
@@ -86,7 +88,9 @@ func TestRoomStateMachine(t *testing.T) {
 	if r2.State != StateLockedCountdown {
 		t.Fatalf("expected countdown")
 	}
-	r2.Cancel()
+	if err := r2.Cancel("party-a"); err != nil {
+		t.Fatalf("cancel countdown room: %v", err)
+	}
 	if r2.State != StateCancelled {
 		t.Fatalf("expected cancelled even during countdown")
 	}
@@ -99,6 +103,32 @@ func TestRoomStateMachine(t *testing.T) {
 	r3.LastActivityAt = time.Now().Add(-61 * time.Minute)
 	if !r3.IsExpired(60) {
 		t.Fatalf("expected room to be expired")
+	}
+}
+
+func TestJoinRejectsDuplicateSeatFromDifferentClient(t *testing.T) {
+	r := NewRoom("room-seat")
+	if err := r.JoinWithClient("party-a", "client-a"); err != nil {
+		t.Fatalf("join party-a: %v", err)
+	}
+	if err := r.JoinWithClient("party-a", "client-a"); err != nil {
+		t.Fatalf("same client should be allowed to restore party-a seat: %v", err)
+	}
+	if err := r.JoinWithClient("party-a", "client-friend"); err == nil {
+		t.Fatal("expected different client using same party-a address to be rejected")
+	}
+}
+
+func TestJoinRejectsThirdPartyWhenRoomFull(t *testing.T) {
+	r := NewRoom("room-full")
+	if err := r.JoinWithClient("party-a", "client-a"); err != nil {
+		t.Fatalf("join party-a: %v", err)
+	}
+	if err := r.JoinWithClient("party-b", "client-b"); err != nil {
+		t.Fatalf("join party-b: %v", err)
+	}
+	if err := r.JoinWithClient("party-c", "client-c"); err == nil {
+		t.Fatal("expected third party to be rejected")
 	}
 }
 
@@ -116,7 +146,7 @@ func TestIntentHashStableForSameRoomState(t *testing.T) {
 	if err := r.AddAsset("party-a", TradeAsset{ID: "a1", Type: "coin", ChainID: "atomone-1", SourceChain: "atomone", DisplayDenom: "ATONE", BaseDenom: "uatone", TechnicalDenom: "uatone", Amount: "100", Decimals: 6, VerificationStatus: VerifyVerified}); err != nil {
 		t.Fatalf("add asset a1: %v", err)
 	}
-	if err := r.AddAsset("party-b", TradeAsset{ID: "b1", Type: "coin", ChainID: "gno-1", SourceChain: "gno", DisplayDenom: "GNOT", BaseDenom: "ugnot", TechnicalDenom: "ugnot", Amount: "25", Decimals: 6, VerificationStatus: VerifyVerified}); err != nil {
+	if err := r.AddAsset("party-b", TradeAsset{ID: "b1", Type: "coin", ChainID: "gno-testnet", SourceChain: "gno", DisplayDenom: "GNOT", BaseDenom: "ugnot", TechnicalDenom: "ugnot", Amount: "25", Decimals: 6, VerificationStatus: VerifyVerified}); err != nil {
 		t.Fatalf("add asset b1: %v", err)
 	}
 
@@ -159,5 +189,90 @@ func TestIntentHashCanonicalAssetOrdering(t *testing.T) {
 	secondHash := ComputeIntentHash(second.GenerateIntent())
 	if firstHash != secondHash {
 		t.Fatalf("expected canonical ordering to produce same hash, got %s and %s", firstHash, secondHash)
+	}
+}
+
+func TestRejectSettlementReceiverOnWrongChain(t *testing.T) {
+	asset := TradeAsset{
+		ID: "route-1", Type: "coin", ChainID: "atomone-1", SourceChain: "atomone",
+		DisplayDenom: "ATONE", BaseDenom: "uatone", TechnicalDenom: "uatone",
+		Amount: "100", Decimals: 6, VerificationStatus: VerifyVerified,
+		Settlement: &SettlementRoute{
+			Network:  "atomone-1",
+			Sender:   SettlementEndpoint{ChainID: "atomone-1", Address: "atone1sender"},
+			Receiver: &SettlementEndpoint{ChainID: "cosmoshub-4", Address: "cosmos1receiver"},
+			Support:  "ready",
+		},
+	}
+
+	if err := ValidateTradeAsset(asset); err == nil {
+		t.Fatal("expected wrong-chain receiver to be rejected")
+	}
+}
+
+func TestIntentHashChangesWhenSettlementReceiverChanges(t *testing.T) {
+	makeRoom := func(receiver string) *Room {
+		r := NewRoom("room-route")
+		r.Join("party-a")
+		r.Join("party-b")
+		asset := TradeAsset{
+			ID: "a1", Type: "coin", ChainID: "atomone-1", SourceChain: "atomone",
+			DisplayDenom: "ATONE", BaseDenom: "uatone", TechnicalDenom: "uatone",
+			Amount: "100", Decimals: 6, VerificationStatus: VerifyVerified,
+			Settlement: &SettlementRoute{
+				Network:  "atomone-1",
+				Sender:   SettlementEndpoint{ChainID: "atomone-1", Address: "atone1sender"},
+				Receiver: &SettlementEndpoint{ChainID: "atomone-1", Address: receiver},
+				Fee:      &SettlementFeeEstimate{Denom: "uphoton", Amount: "5000", DisplayAmount: "0.005 PHOTON", Source: "static-estimate"},
+				Support:  "ready",
+			},
+		}
+		if err := r.AddAsset("party-a", asset); err != nil {
+			t.Fatalf("add asset: %v", err)
+		}
+		return r
+	}
+
+	first := ComputeIntentHash(makeRoom("atone1receiverone").GenerateIntent())
+	second := ComputeIntentHash(makeRoom("atone1receivertwo").GenerateIntent())
+
+	if first == second {
+		t.Fatal("expected settlement receiver change to change intent hash")
+	}
+}
+
+func TestRejectFakeVerifiedKnownTicker(t *testing.T) {
+	fakeAtom := TradeAsset{
+		ID: "fake-atom", Type: "coin", ChainID: "atomone-1", SourceChain: "atomone",
+		DisplayDenom: "ATOM", BaseDenom: "uatone", TechnicalDenom: "uatone",
+		Amount: "100", Decimals: 6, VerificationStatus: VerifyVerified,
+	}
+
+	if err := ValidateTradeAsset(fakeAtom); err == nil {
+		t.Fatal("expected fake verified ATOM ticker to be rejected")
+	}
+}
+
+func TestRequireKnownTickerMismatchToBeSuspicious(t *testing.T) {
+	fakeAtom := TradeAsset{
+		ID: "fake-atom", Type: "coin", ChainID: "atomone-1", SourceChain: "atomone",
+		DisplayDenom: "ATOM", BaseDenom: "uatone", TechnicalDenom: "uatone",
+		Amount: "100", Decimals: 6, VerificationStatus: VerifySuspicious,
+	}
+
+	if err := ValidateTradeAsset(fakeAtom); err != nil {
+		t.Fatalf("expected suspicious known-ticker mismatch to be accepted as explicitly risky intent: %v", err)
+	}
+}
+
+func TestRejectUnknownVerifiedAsset(t *testing.T) {
+	unknown := TradeAsset{
+		ID: "unknown", Type: "coin", ChainID: "mystery-1", SourceChain: "mystery",
+		DisplayDenom: "MYST", BaseDenom: "umyst", TechnicalDenom: "umyst",
+		Amount: "100", Decimals: 6, VerificationStatus: VerifyVerified,
+	}
+
+	if err := ValidateTradeAsset(unknown); err == nil {
+		t.Fatal("expected unknown verified asset to be rejected")
 	}
 }

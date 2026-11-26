@@ -12,8 +12,8 @@ import (
 func TestHubProcessMessage(t *testing.T) {
 	hub := NewHub()
 
-	clientA := &Client{Hub: hub, Address: "atone1mockA", Send: make(chan []byte, 10)}
-	clientB := &Client{Hub: hub, Address: "atone1mockB", Send: make(chan []byte, 10)}
+	clientA := &Client{Hub: hub, Address: "atone1mockA", ClientID: "client-a", Send: make(chan []byte, 10)}
+	clientB := &Client{Hub: hub, Address: "atone1mockB", ClientID: "client-b", Send: make(chan []byte, 10)}
 
 	hub.Clients[clientA] = true
 	hub.Clients[clientB] = true
@@ -81,7 +81,7 @@ func TestHubProcessMessage(t *testing.T) {
 	}
 
 	// Test invalid party rejected
-	clientC := &Client{Hub: hub, Address: "atone1mockC", RoomID: roomID, Send: make(chan []byte, 10)}
+	clientC := &Client{Hub: hub, Address: "atone1mockC", ClientID: "client-c", RoomID: roomID, Send: make(chan []byte, 10)}
 	hub.RoomClients[roomID] = make(map[*Client]bool)
 	hub.RoomClients[roomID][clientC] = true
 	hub.ProcessMessage(clientC, protocol.WSMessage{Type: "offer:add", Payload: assetBytes})

@@ -11,7 +11,9 @@ type Config struct {
 	Port                       string
 	AllowedOrigins             []string
 	MaxWSMessageBytes          int64
+	WSRateLimitPerMinute       int
 	CountdownSeconds           int
+	IntentTTLMinutes           int
 	RoomExpiryMinutes          int
 	RoomCleanupIntervalSeconds int
 	BoardStoragePath           string
@@ -24,6 +26,11 @@ type Config struct {
 	RequestsStoragePath        string
 	RequestsMaxBodyBytes       int
 	RequestsRateLimitPerMinute int
+	GnoChainID                 string
+	GnoRPCURL                  string
+	GnoEscrowRealmPath         string
+	GnoSettlementEnabled       bool
+	GnoDeploymentMode          string
 }
 
 var AppConfig *Config
@@ -33,7 +40,9 @@ func Init() {
 		Port:                       getEnvString("PORT", "8080"),
 		AllowedOrigins:             getEnvStringSlice("ALLOWED_ORIGINS", []string{"http://localhost:3000", "http://localhost:3001"}),
 		MaxWSMessageBytes:          int64(getEnvInt("MAX_WS_MESSAGE_BYTES", 16384)),
+		WSRateLimitPerMinute:       getEnvInt("WS_RATE_LIMIT_PER_MINUTE", 120),
 		CountdownSeconds:           getEnvInt("COUNTDOWN_SECONDS", 10),
+		IntentTTLMinutes:           getEnvInt("INTENT_TTL_MINUTES", 15),
 		RoomExpiryMinutes:          getEnvInt("ROOM_EXPIRY_MINUTES", 60),
 		RoomCleanupIntervalSeconds: getEnvInt("ROOM_CLEANUP_INTERVAL_SECONDS", 60),
 		BoardStoragePath:           getEnvString("BOARD_STORAGE_PATH", "./data/board-listings.jsonl"),
@@ -46,6 +55,11 @@ func Init() {
 		RequestsStoragePath:        getEnvString("REQUESTS_STORAGE_PATH", "./data/deal-requests.jsonl"),
 		RequestsMaxBodyBytes:       getEnvInt("REQUESTS_MAX_BODY_BYTES", 16384),
 		RequestsRateLimitPerMinute: getEnvInt("REQUESTS_RATE_LIMIT_PER_MINUTE", 10),
+		GnoChainID:                 getEnvString("GNO_CHAIN_ID", "gno-testnet"),
+		GnoRPCURL:                  getEnvString("GNO_RPC_URL", ""),
+		GnoEscrowRealmPath:         getEnvString("GNO_ESCROW_REALM_PATH", "gno.land/r/tradewindow/escrow"),
+		GnoSettlementEnabled:       getEnvBool("GNO_SETTLEMENT_ENABLED", false),
+		GnoDeploymentMode:          getEnvString("GNO_DEPLOYMENT_MODE", "local"),
 	}
 }
 
@@ -71,6 +85,18 @@ func getEnvInt(key string, fallback int) int {
 		parsed, err := strconv.Atoi(value)
 		if err != nil {
 			log.Printf("Warning: Invalid integer value for %s: %v. Using default: %d\n", key, value, fallback)
+			return fallback
+		}
+		return parsed
+	}
+	return fallback
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	if value, exists := os.LookupEnv(key); exists {
+		parsed, err := strconv.ParseBool(value)
+		if err != nil {
+			log.Printf("Warning: Invalid boolean value for %s: %v. Using default: %t\n", key, value, fallback)
 			return fallback
 		}
 		return parsed

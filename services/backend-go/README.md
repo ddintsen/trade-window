@@ -8,6 +8,26 @@ This is the Go coordination service for Trade Window. It provides HTTP endpoints
 go run ./cmd/server
 ```
 
+### Gno.land Status Configuration
+
+The backend exposes a readiness endpoint at:
+
+```txt
+GET /api/gno/status
+```
+
+This endpoint reports whether a local/testnet Gno RPC and escrow realm path are configured. It does not sign transactions, custody funds, or claim mainnet settlement.
+
+Local/testnet env:
+
+```env
+GNO_CHAIN_ID=gno-testnet
+GNO_RPC_URL=http://127.0.0.1:26657
+GNO_ESCROW_REALM_PATH=gno.land/r/tradewindow/escrow
+GNO_DEPLOYMENT_MODE=local
+GNO_SETTLEMENT_ENABLED=false
+```
+
 ### Production Deployment Flow
 
 Follow these exact steps to run the backend in a stateless production environment:
@@ -19,6 +39,7 @@ Follow these exact steps to run the backend in a stateless production environmen
    - `STORAGE_DRIVER=postgres`
    - `DATABASE_URL=postgres://...` (your Supabase connection string)
    - `ALLOWED_ORIGINS=https://tradewindow.xyz` (or your actual Vercel URL)
+   - `GNO_SETTLEMENT_ENABLED=false` until a tested Gno local/testnet deployment is approved
 5. Set the Vercel frontend environment variables:
    - `NEXT_PUBLIC_API_URL=https://<your-backend-url>`
    - `NEXT_PUBLIC_WS_URL=wss://<your-backend-url>/ws`

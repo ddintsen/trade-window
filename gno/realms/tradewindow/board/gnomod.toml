@@ -1,3 +1,2 @@
 module = "gno.land/r/tradewindow/board"
-
-[require]
+gno = "0.9"

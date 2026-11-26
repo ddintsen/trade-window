@@ -1,7 +1,6 @@
 package rooms
 
 import (
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -32,15 +31,6 @@ func ComputeIntentHash(intent TradeIntent) string {
 	return "0x" + hex.EncodeToString(hash[:])
 }
 
-// randomNonce returns 16 random bytes as a hex string.
-func randomNonce() string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		panic("failed to generate nonce")
-	}
-	return hex.EncodeToString(b)
-}
-
 // primaryChainID derives the chain from the assets. Falls back to atomone-1.
 func primaryChainID(offerA, offerB []TradeAsset) string {
 	for _, a := range offerA {
@@ -60,9 +50,15 @@ func (r *Room) GenerateIntent() TradeIntent {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	now := time.Now().UTC()
 	canonA := canonicalAssets(r.OfferA)
 	canonB := canonicalAssets(r.OfferB)
+
+	// Deterministic expiry: fixed once when the room entered ready_to_sign.
+	// Empty until then, so a pre-countdown intent preview is clearly unsigned-ready.
+	expiresAt := ""
+	if !r.IntentExpiresAt.IsZero() {
+		expiresAt = r.IntentExpiresAt.UTC().Format(time.RFC3339)
+	}
 
 	intentID := r.ID + "-intent"
 	return TradeIntent{
@@ -76,9 +72,9 @@ func (r *Room) GenerateIntent() TradeIntent {
 		OfferB:    canonB,
 		Fee:       "0",
 		FeeToken:  "uatone",
-		CreatedAt: now.Format(time.RFC3339),
-		ExpiresAt: now.Add(10 * time.Minute).Format(time.RFC3339),
-		Nonce:     randomNonce(),
+		CreatedAt: "",
+		ExpiresAt: expiresAt,
+		Nonce:     r.ID,
 		Status:    "ready_to_sign",
 	}
 }
@@ -99,5 +95,32 @@ func canonicalAssetKey(asset TradeAsset) string {
 		asset.TechnicalDenom + "\x00" +
 		asset.BaseDenom + "\x00" +
 		asset.Amount + "\x00" +
-		asset.ID
+		asset.ID + "\x00" +
+		canonicalSettlementKey(asset.Settlement)
+}
+
+func canonicalSettlementKey(route *SettlementRoute) string {
+	if route == nil {
+		return ""
+	}
+	receiverChain := ""
+	receiverAddress := ""
+	if route.Receiver != nil {
+		receiverChain = route.Receiver.ChainID
+		receiverAddress = route.Receiver.Address
+	}
+	feeDenom := ""
+	feeAmount := ""
+	if route.Fee != nil {
+		feeDenom = route.Fee.Denom
+		feeAmount = route.Fee.Amount
+	}
+	return route.Network + "\x00" +
+		route.Sender.ChainID + "\x00" +
+		route.Sender.Address + "\x00" +
+		receiverChain + "\x00" +
+		receiverAddress + "\x00" +
+		feeDenom + "\x00" +
+		feeAmount + "\x00" +
+		route.Support
 }

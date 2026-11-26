@@ -1,0 +1,67 @@
+// A still of the night forest, without the bridge, for page backgrounds.
+import * as THREE from "three";
+import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
+import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
+import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { HorizontalTiltShiftShader } from "three/examples/jsm/shaders/HorizontalTiltShiftShader.js";
+import { VerticalTiltShiftShader } from "three/examples/jsm/shaders/VerticalTiltShiftShader.js";
+import { createForest } from "/home/claude/trade-window/apps/web/src/components/three/forest";
+import { nightEnvironment, PAL, type Wind } from "/home/claude/trade-window/apps/web/src/components/three/kit";
+
+const q = new URLSearchParams(location.search);
+const W = Number(q.get("w") ?? 1600), H = Number(q.get("h") ?? 900);
+const dist = Number(q.get("d") ?? 30), pitch = Number(q.get("p") ?? 0.95), yaw = Number(q.get("y") ?? -0.08);
+const tx = Number(q.get("tx") ?? 0), tz = Number(q.get("tz") ?? 0);
+const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NeutralToneMapping;
+renderer.toneMappingExposure = 1.06;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.setClearColor(PAL.sky, 1);
+document.body.style.margin = "0";
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(PAL.sky);
+scene.fog = new THREE.Fog(PAL.fog, 20, 70);
+scene.environment = nightEnvironment(renderer);
+scene.add(new THREE.HemisphereLight(0x92b6c8, 0x101d18, 1.05));
+const moon = new THREE.DirectionalLight(0xc6d8ec, 1.45);
+moon.position.set(-6, 10, 5);
+moon.castShadow = true;
+moon.shadow.mapSize.set(2048, 2048);
+Object.assign(moon.shadow.camera, { left: -16, right: 16, top: 12, bottom: -12, near: 1, far: 40 });
+moon.shadow.bias = -0.0004;
+moon.shadow.normalBias = 0.025;
+scene.add(moon, moon.target);
+const wind: Wind = { uTime: { value: 3 }, uWind: { value: 1 } };
+const forest = createForest(wind, "high");
+scene.add(forest.group);
+
+const camera = new THREE.PerspectiveCamera(26, W / H, 0.1, 200);
+const target = new THREE.Vector3(tx, 0.4, tz);
+const dir = new THREE.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)).normalize();
+camera.position.copy(target).addScaledVector(dir, dist);
+camera.lookAt(target);
+
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType, samples: 4 }));
+composer.setSize(W, H);
+composer.addPass(new RenderPass(scene, camera));
+const gtao = new GTAOPass(scene, camera, W, H);
+gtao.updateGtaoMaterial({ radius: 0.45, distanceExponent: 1.4, thickness: 1.2, scale: 1.1, samples: 12, distanceFallOff: 1, screenSpaceRadius: false });
+composer.addPass(gtao);
+composer.addPass(new UnrealBloomPass(new THREE.Vector2(W, H), 0.5, 0.45, 0.92));
+composer.addPass(new OutputPass());
+const h = new ShaderPass(HorizontalTiltShiftShader);
+const v = new ShaderPass(VerticalTiltShiftShader);
+h.uniforms.h.value = 1.2 / W; v.uniforms.v.value = 1.2 / H;
+h.uniforms.r.value = 0.5; v.uniforms.r.value = 0.5;
+composer.addPass(h); composer.addPass(v);
+composer.render(0.016);
+(window as unknown as { done: boolean }).done = true;

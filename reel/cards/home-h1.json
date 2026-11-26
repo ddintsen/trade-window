@@ -1,0 +1,69 @@
+{
+ "h1": {
+  "fontSize": "124.16px",
+  "lineHeight": "114.227px",
+  "fontFamily": "Handjet, \"Handjet Fallback\", \"Instrument Sans\", \"Instrument Sans Fallback\", ui-sans-serif, sans-serif",
+  "fontWeight": "640",
+  "letterSpacing": "normal",
+  "fvs": "\"ELGR\" 1, \"ELSH\" 2",
+  "color": "rgb(232, 238, 235)",
+  "words": [
+   {
+    "text": "Nothing",
+    "x": 88,
+    "y": 91,
+    "w": 325,
+    "h": 139
+   },
+   {
+    "text": "crosses",
+    "x": 88,
+    "y": 205.21875,
+    "w": 339.609375,
+    "h": 139
+   },
+   {
+    "text": "until",
+    "x": 88,
+    "y": 319.4375,
+    "w": 182.59375,
+    "h": 139
+   },
+   {
+    "text": "you",
+    "x": 292.484375,
+    "y": 319.4375,
+    "w": 146.078125,
+    "h": 139
+   },
+   {
+    "text": "are",
+    "x": 460.453125,
+    "y": 319.4375,
+    "w": 135.125,
+    "h": 139
+   },
+   {
+    "text": "both",
+    "x": 88,
+    "y": 433.65625,
+    "w": 189.890625,
+    "h": 139
+   },
+   {
+    "text": "ready",
+    "x": 299.78125,
+    "y": 433.65625,
+    "w": 230.078125,
+    "h": 139
+   }
+  ]
+ },
+ "p": {
+  "x": 88,
+  "y": 584.875,
+  "w": 516.65625,
+  "h": 90,
+  "text": "A trade room for two on Gno.land. Put in GNOT, tokens or NFTs, both get ready on the same version, and the second ready mark swaps everything in one transaction."
+ }
+}

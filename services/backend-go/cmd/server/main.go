@@ -13,6 +13,7 @@ import (
 	"github.com/tradewindow/backend-go/internal/auth"
 	"github.com/tradewindow/backend-go/internal/board"
 	"github.com/tradewindow/backend-go/internal/config"
+	gnostatus "github.com/tradewindow/backend-go/internal/gno"
 	"github.com/tradewindow/backend-go/internal/history"
 	"github.com/tradewindow/backend-go/internal/requests"
 	"github.com/tradewindow/backend-go/internal/storage"
@@ -54,6 +55,20 @@ func isValidWalletAddress(wallet string) bool {
 	}
 	for _, r := range wallet {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' || r == ':' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func isValidClientID(clientID string) bool {
+	clientID = strings.TrimSpace(clientID)
+	if len(clientID) < 8 || len(clientID) > 128 {
+		return false
+	}
+	for _, r := range clientID {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' || r == '_' {
 			continue
 		}
 		return false
@@ -105,7 +120,7 @@ func main() {
 
 		boardStore = board.NewPostgresBoardStore(pool)
 		requestsStore = requests.NewPostgresRequestStore(pool)
-		
+
 		historyStore := history.NewPostgresHistoryStore(pool)
 		historyHandlers = history.NewHandlers(historyStore)
 	} else {
@@ -151,6 +166,7 @@ func main() {
 	http.HandleFunc("/api/board/listings/", corsMiddleware(boardHandlers.HandleListingByID))
 	http.HandleFunc("/api/deal-requests", corsMiddleware(requestsHandlers.HandleDealRequests))
 	http.HandleFunc("/api/me/trades", corsMiddleware(historyHandlers.HandleMyTrades))
+	http.HandleFunc("/api/gno/status", corsMiddleware(gnostatus.HandleStatus))
 
 	http.HandleFunc("/api/trade/rooms", corsMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -193,6 +209,11 @@ func main() {
 			http.Error(w, "valid wallet query param required", http.StatusUnauthorized)
 			return
 		}
+		clientID := r.URL.Query().Get("clientId")
+		if !isValidClientID(clientID) {
+			http.Error(w, "valid clientId query param required", http.StatusUnauthorized)
+			return
+		}
 
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
@@ -201,10 +222,11 @@ func main() {
 		}
 
 		client := &ws.Client{
-			Hub:     hub,
-			Conn:    conn,
-			Send:    make(chan []byte, 256),
-			Address: wallet,
+			Hub:      hub,
+			Conn:     conn,
+			Send:     make(chan []byte, 256),
+			Address:  wallet,
+			ClientID: clientID,
 		}
 		client.Hub.Register <- client
 

@@ -1,18 +1,8 @@
-#!/bin/bash
-set -e
-export PATH="$HOME/go/bin:$PATH"
-
-echo "=== Testing Gno Contracts ==="
-cd "$(dirname "$0")/../../gno/realms/tradewindow/rooms"
-echo "Testing rooms..."
-gno test . -v
-
-cd "../intents"
-echo "Testing intents..."
-gno test . -v
-
-cd "../registry"
-echo "Testing registry..."
-gno test . -v
-
-echo "✅ All Gno tests passed!"
+#!/usr/bin/env bash
+# Runs the realm tests. Needs gno from the chain/mainnet branch of
+# github.com/gnolang/gno (the code Onyx and mainnet run).
+set -euo pipefail
+export PATH="$(go env GOPATH 2>/dev/null || echo "$HOME/go")/bin:$PATH"
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$ROOT/gno"
+gno test ./realms/...

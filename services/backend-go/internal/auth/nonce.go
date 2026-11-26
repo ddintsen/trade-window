@@ -129,6 +129,5 @@ func HandleVerify(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{
 		"status": "not_implemented",
 		"reason": "Signature verification requires ADR-036 or Amino integration. Nonce has been consumed.",
-		"nonce_was": record.Nonce,
 	})
 }

@@ -83,7 +83,7 @@ func (h *Hub) cleanupRooms() {
 			delete(h.RoomClients, id)
 			continue
 		}
-		
+
 		state := room.GetState()
 		if state == rooms.StateCancelled || state == rooms.StateCompleted || state == rooms.StateExpired {
 			// Room is dead, clean it up after a brief grace period or instantly
@@ -143,7 +143,10 @@ func (h *Hub) ProcessMessage(c *Client, msg protocol.WSMessage) {
 		h.mu.Unlock()
 		c.RoomID = id
 
-		r.Join(c.Address)
+		if err := r.JoinWithClient(c.Address, c.ClientID); err != nil {
+			c.SendError(protocol.ErrStateRejected, err.Error())
+			return
+		}
 		h.broadcastLog(id, fmt.Sprintf("Room %s created by %s", id, c.Address))
 		h.BroadcastRoomState(id)
 
@@ -153,7 +156,7 @@ func (h *Hub) ProcessMessage(c *Client, msg protocol.WSMessage) {
 			c.SendError(protocol.ErrInvalidPayload, "Invalid room join payload")
 			return
 		}
-		
+
 		h.mu.Lock()
 		r, exists := h.Rooms[p.RoomID]
 		h.mu.Unlock()
@@ -161,18 +164,18 @@ func (h *Hub) ProcessMessage(c *Client, msg protocol.WSMessage) {
 			c.SendError(protocol.ErrRoomNotFound, "Room not found")
 			return
 		}
-		
-		err := r.Join(c.Address)
+
+		err := r.JoinWithClient(c.Address, c.ClientID)
 		if err != nil {
 			c.SendError(protocol.ErrStateRejected, err.Error())
 			return
 		}
-		
+
 		c.RoomID = p.RoomID
 		h.mu.Lock()
 		h.RoomClients[p.RoomID][c] = true
 		h.mu.Unlock()
-		
+
 		h.broadcastLog(p.RoomID, fmt.Sprintf("%s joined the room", c.Address))
 		h.BroadcastRoomState(p.RoomID)
 
@@ -188,14 +191,14 @@ func (h *Hub) ProcessMessage(c *Client, msg protocol.WSMessage) {
 			c.SendError(protocol.ErrInvalidPayload, "Invalid asset payload")
 			return
 		}
-		
+
 		wasLocked := room.LockA || room.LockB
 		err := room.AddAsset(c.Address, p.Asset)
 		if err != nil {
 			c.SendError(protocol.ErrStateRejected, err.Error())
 			return
 		}
-		
+
 		if wasLocked && (!room.LockA && !room.LockB) {
 			h.broadcastLog(room.ID, "WARNING: Offer changed. Locks reset.")
 		}
@@ -214,7 +217,7 @@ func (h *Hub) ProcessMessage(c *Client, msg protocol.WSMessage) {
 		}
 		h.broadcastLog(room.ID, fmt.Sprintf("%s locked their offer", c.Address))
 		h.BroadcastRoomState(room.ID)
-		
+
 		if room.StartCountdown() {
 			h.broadcastLog(room.ID, "Both parties locked. Safety countdown started.")
 			go h.runCountdown(room)
@@ -242,19 +245,19 @@ func (h *Hub) ProcessMessage(c *Client, msg protocol.WSMessage) {
 			c.SendError(protocol.ErrInvalidPayload, "Invalid chat payload")
 			return
 		}
-		
+
 		if len(p.Message) > 500 {
 			c.SendError(protocol.ErrMessageTooLong, "Message exceeds 500 character limit")
 			return
 		}
-		
+
 		h.mu.Lock()
 		clients := h.RoomClients[room.ID]
 		h.mu.Unlock()
 		for rc := range clients {
 			rc.SendJSON("chat:message", map[string]string{"sender": c.Address, "message": p.Message})
 		}
-		
+
 	default:
 		c.SendError(protocol.ErrInvalidEvent, fmt.Sprintf("Unknown event type: %s", msg.Type))
 	}
@@ -265,27 +268,27 @@ func (h *Hub) runCountdown(room *rooms.Room) {
 	if config.AppConfig != nil {
 		seconds = config.AppConfig.CountdownSeconds
 	}
-	
+
 	for i := seconds; i > 0; i-- {
 		if room.GetState() != rooms.StateLockedCountdown {
 			return
 		}
-		
+
 		h.mu.Lock()
 		clients := h.RoomClients[room.ID]
 		h.mu.Unlock()
 		for c := range clients {
 			c.SendJSON("countdown:tick", map[string]int{"seconds": i})
 		}
-		
+
 		time.Sleep(1 * time.Second)
 	}
-	
+
 	room.CheckCountdown()
 	if room.GetState() == rooms.StateReadyToSign {
 		h.broadcastLog(room.ID, "Countdown complete. Ready for final intent review and signing.")
 		h.BroadcastRoomState(room.ID)
-		
+
 		intent := room.GenerateIntent()
 		hash := rooms.ComputeIntentHash(intent)
 		h.mu.Lock()

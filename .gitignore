@@ -23,3 +23,6 @@ local-chain-data/
 gnoland-data/
 .vercel/
 services/backend-go/data/*.jsonl
+
+# Rendered films live outside git (see reel/README.md)
+previews/

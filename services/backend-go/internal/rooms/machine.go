@@ -43,6 +43,21 @@ const (
 	VerifySuspicious VerificationStatus = "suspicious"
 )
 
+type knownAssetIdentity struct {
+	Symbol         string
+	DisplayDenom   string
+	TechnicalDenom string
+	ChainID        string
+}
+
+var knownAssetIdentities = []knownAssetIdentity{
+	{Symbol: "GNOT", DisplayDenom: "GNOT", TechnicalDenom: "ugnot", ChainID: "gno-testnet"},
+	{Symbol: "ATONE", DisplayDenom: "ATONE", TechnicalDenom: "uatone", ChainID: "atomone-1"},
+	{Symbol: "PHOTON", DisplayDenom: "PHOTON", TechnicalDenom: "uphoton", ChainID: "atomone-1"},
+	{Symbol: "ATOM", DisplayDenom: "ATOM", TechnicalDenom: "uatom", ChainID: "cosmoshub-4"},
+	{Symbol: "STARS", DisplayDenom: "STARS", TechnicalDenom: "ustars", ChainID: "stargaze-1"},
+}
+
 type TradeAsset struct {
 	ID                 string             `json:"id"`
 	Type               string             `json:"type"`
@@ -57,6 +72,30 @@ type TradeAsset struct {
 	VerificationStatus VerificationStatus `json:"verificationStatus"`
 	VerificationReason string             `json:"verificationReason"`
 	Metadata           string             `json:"metadata"`
+	Settlement         *SettlementRoute   `json:"settlement,omitempty"`
+}
+
+type SettlementEndpoint struct {
+	ChainID  string `json:"chainId"`
+	Address  string `json:"address"`
+	Label    string `json:"label,omitempty"`
+	Provider string `json:"provider,omitempty"`
+}
+
+type SettlementFeeEstimate struct {
+	Denom         string `json:"denom"`
+	Amount        string `json:"amount"`
+	DisplayAmount string `json:"displayAmount"`
+	Source        string `json:"source"`
+}
+
+type SettlementRoute struct {
+	Network  string                 `json:"network"`
+	Sender   SettlementEndpoint     `json:"sender"`
+	Receiver *SettlementEndpoint    `json:"receiver,omitempty"`
+	Fee      *SettlementFeeEstimate `json:"fee,omitempty"`
+	Support  string                 `json:"support"`
+	Warning  string                 `json:"warning,omitempty"`
 }
 
 type Room struct {
@@ -66,11 +105,18 @@ type Room struct {
 	State          RoomState    `json:"state"`
 	PartyA         string       `json:"partyA"`
 	PartyB         string       `json:"partyB"`
+	PartyAClientID string       `json:"-"`
+	PartyBClientID string       `json:"-"`
 	OfferA         []TradeAsset `json:"offerA"`
 	OfferB         []TradeAsset `json:"offerB"`
 	LockA          bool         `json:"lockA"`
 	LockB          bool         `json:"lockB"`
 	CountdownAt    time.Time    `json:"countdownAt"`
+	// IntentExpiresAt is fixed once when the room enters ready_to_sign.
+	// It is part of the final trade state, so the intent hash stays
+	// deterministic: recomputing the intent for the same room state always
+	// yields the same expiry and therefore the same hash.
+	IntentExpiresAt time.Time   `json:"intentExpiresAt"`
 	LastActivityAt time.Time    `json:"-"`
 
 	countdownStarted bool
@@ -97,18 +143,44 @@ func (r *Room) IsExpired(maxAgeMinutes int) bool {
 }
 
 func (r *Room) Join(party string) error {
+	return r.JoinWithClient(party, party)
+}
+
+func (r *Room) JoinWithClient(party string, clientID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.touch()
 
+	if strings.TrimSpace(party) == "" {
+		return errors.New("empty party")
+	}
+	if strings.TrimSpace(clientID) == "" {
+		return errors.New("empty client session")
+	}
 	if r.State != StateLobby && r.State != StateActive {
 		return errors.New("room is not joinable")
 	}
 
 	if r.PartyA == "" {
 		r.PartyA = party
+		r.PartyAClientID = clientID
+	} else if r.PartyA == party {
+		if r.PartyAClientID == "" || r.PartyAClientID == clientID {
+			r.PartyAClientID = clientID
+		} else {
+			return errors.New("party A seat is already occupied by another session")
+		}
 	} else if r.PartyB == "" && r.PartyA != party {
 		r.PartyB = party
+		r.PartyBClientID = clientID
+	} else if r.PartyB == party {
+		if r.PartyBClientID == "" || r.PartyBClientID == clientID {
+			r.PartyBClientID = clientID
+		} else {
+			return errors.New("party B seat is already occupied by another session")
+		}
+	} else {
+		return errors.New("room already has two parties")
 	}
 
 	if r.PartyA != "" && r.PartyB != "" && r.State == StateLobby {
@@ -183,11 +255,108 @@ func ValidateTradeAsset(asset TradeAsset) error {
 	default:
 		return errors.New("invalid asset verification status")
 	}
+	if err := ValidateAssetAuthenticity(asset); err != nil {
+		return err
+	}
 	if len(asset.Metadata) > 2048 {
 		return errors.New("asset metadata too large")
 	}
 	if len(asset.IbcTrace) > 512 {
 		return errors.New("asset ibc trace too large")
+	}
+	if asset.Settlement != nil {
+		if err := ValidateSettlementRoute(asset.ChainID, *asset.Settlement); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ValidateAssetAuthenticity(asset TradeAsset) error {
+	exact := knownAssetByChainAndDenom(asset.ChainID, asset.TechnicalDenom)
+	if exact != nil {
+		displayMatches := strings.EqualFold(asset.DisplayDenom, exact.Symbol) ||
+			strings.EqualFold(asset.DisplayDenom, exact.DisplayDenom) ||
+			strings.EqualFold(asset.DisplayDenom, exact.TechnicalDenom)
+		if asset.VerificationStatus == VerifyVerified && !displayMatches {
+			return errors.New("verified asset display denom does not match registry identity")
+		}
+		return nil
+	}
+
+	claimed := knownAssetsByDisplayDenom(asset.DisplayDenom)
+	if len(claimed) > 0 {
+		if asset.VerificationStatus != VerifySuspicious {
+			return errors.New("known ticker with mismatched chain or denom must be marked suspicious")
+		}
+		return nil
+	}
+
+	if asset.VerificationStatus == VerifyVerified {
+		return errors.New("unknown asset cannot be marked verified")
+	}
+	return nil
+}
+
+func knownAssetByChainAndDenom(chainID, technicalDenom string) *knownAssetIdentity {
+	for i := range knownAssetIdentities {
+		asset := &knownAssetIdentities[i]
+		if asset.ChainID == chainID && strings.EqualFold(asset.TechnicalDenom, technicalDenom) {
+			return asset
+		}
+	}
+	return nil
+}
+
+func knownAssetsByDisplayDenom(displayDenom string) []knownAssetIdentity {
+	matches := []knownAssetIdentity{}
+	for _, asset := range knownAssetIdentities {
+		if strings.EqualFold(asset.Symbol, displayDenom) || strings.EqualFold(asset.DisplayDenom, displayDenom) {
+			matches = append(matches, asset)
+		}
+	}
+	return matches
+}
+
+func ValidateSettlementRoute(assetChainID string, route SettlementRoute) error {
+	if strings.TrimSpace(route.Network) == "" || len(route.Network) > 128 {
+		return errors.New("invalid settlement network")
+	}
+	if route.Network != assetChainID {
+		return errors.New("settlement network must match asset chain")
+	}
+	if strings.TrimSpace(route.Sender.Address) == "" || len(route.Sender.Address) > 128 {
+		return errors.New("invalid settlement sender address")
+	}
+	if strings.TrimSpace(route.Sender.ChainID) == "" || route.Sender.ChainID != assetChainID {
+		return errors.New("settlement sender chain must match asset chain")
+	}
+	if route.Receiver != nil {
+		if strings.TrimSpace(route.Receiver.Address) == "" || len(route.Receiver.Address) > 128 {
+			return errors.New("invalid settlement receiver address")
+		}
+		if strings.TrimSpace(route.Receiver.ChainID) == "" || route.Receiver.ChainID != assetChainID {
+			return errors.New("settlement receiver chain must match asset chain")
+		}
+	}
+	switch route.Support {
+	case "ready", "receiver_required", "fee_required", "unsupported":
+	default:
+		return errors.New("invalid settlement support")
+	}
+	if route.Fee != nil {
+		if strings.TrimSpace(route.Fee.Denom) == "" || len(route.Fee.Denom) > 128 {
+			return errors.New("invalid settlement fee denom")
+		}
+		if strings.TrimSpace(route.Fee.Amount) == "" || len(route.Fee.Amount) > 80 {
+			return errors.New("invalid settlement fee amount")
+		}
+		if len(route.Fee.DisplayAmount) > 80 || len(route.Fee.Source) > 80 {
+			return errors.New("invalid settlement fee metadata")
+		}
+	}
+	if len(route.Warning) > 512 {
+		return errors.New("settlement warning too large")
 	}
 	return nil
 }
@@ -268,6 +437,13 @@ func (r *Room) CheckCountdown() {
 
 	if r.State == StateLockedCountdown && time.Now().After(r.CountdownAt) {
 		r.State = StateReadyToSign
+		ttlMinutes := 15
+		if config.AppConfig != nil {
+			ttlMinutes = config.AppConfig.IntentTTLMinutes
+		}
+		// Anchor expiry to the (already fixed) countdown deadline, not to
+		// time.Now(), so the value is deterministic for this room state.
+		r.IntentExpiresAt = r.CountdownAt.Add(time.Duration(ttlMinutes) * time.Minute).UTC()
 	}
 }
 

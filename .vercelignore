@@ -1,0 +1,15 @@
+# What `vercel deploy` uploads from a local checkout. The Vercel project
+# builds apps/web only (its root directory), so the rest stays here.
+.git/
+reel/
+services/
+previews/
+history/
+docs/
+gno/
+scripts/
+apps/web/.next/
+apps/web/node_modules/
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/tsconfig.tsbuildinfo

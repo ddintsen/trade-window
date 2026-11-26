@@ -1,82 +1,72 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Handjet, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { ToastContainer } from "@/components/ui/toasts";
+import { Footer } from "@/components/site/footer";
+import { Backdrop } from "@/components/site/backdrop";
+import { Header } from "@/components/site/header";
+import { Toaster } from "@/components/ui/toast";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const sans = Instrument_Sans({
   subsets: ["latin"],
+  axes: ["wdth"],
+  variable: "--font-instrument",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Pixel numerals and titles for the trade window, the family 67 uses.
+const pixel = Handjet({
   subsets: ["latin"],
+  axes: ["ELGR", "ELSH"],
+  variable: "--font-handjet",
+  display: "swap",
 });
 
-const playfair = Playfair_Display({
-  variable: "--font-playfair",
+const mono = JetBrains_Mono({
   subsets: ["latin"],
+  variable: "--font-jetbrains",
+  display: "swap",
 });
+
+const description =
+  "Two-party trade rooms on Gno.land. Both sides put in GNOT, tokens or NFTs, get ready on the same version of the room, and the second ready mark swaps everything in one transaction.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://tradewindow.xyz"),
-  title: {
-    default: "Trade Window",
-    template: "%s | Trade Window",
-  },
-  description: "Trade Window is an MVP/research prototype for structured OTC deal coordination, public deal intents and future Gno.land commitment flows. It does not provide custody, financial advice, guaranteed execution or real settlement.",
-  icons: {
-    icon: [
-      { url: '/favicon-v4.ico' },
-      { url: '/favicon-v4.svg', type: 'image/svg+xml' },
-    ],
-    apple: [
-      { url: '/apple-touch-icon-v4.png', sizes: '180x180', type: 'image/png' },
-    ],
-    other: [
-      { rel: 'manifest', url: '/site.webmanifest' },
-    ],
-  },
-  alternates: {
-    canonical: "https://tradewindow.xyz",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Trade Window",
-    description: "Structured OTC deal coordination, public deal intents and future Gno.land commitment flows.",
-    images: ["https://tradewindow.xyz/og-image-v4.png"],
-  },
+  title: { default: "Trade Window", template: "%s, Trade Window" },
+  description,
+  alternates: { canonical: "/" },
   openGraph: {
     title: "Trade Window",
-    description: "Structured OTC deal coordination, public deal intents and future Gno.land commitment flows.",
+    description,
     url: "https://tradewindow.xyz",
     siteName: "Trade Window",
-    images: [
-      {
-        url: "https://tradewindow.xyz/og-image-v4.png",
-        width: 1200,
-        height: 630,
-        alt: "Trade Window — OTC Trade Room for AtomOne & Gno.land",
-      },
-    ],
-    locale: "en_US",
     type: "website",
   },
+  twitter: { card: "summary_large_image", title: "Trade Window", description },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  themeColor: "#0b0e0d",
+  colorScheme: "dark",
+};
+
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">
-        {children}
-        <ToastContainer />
+    <html lang="en" className={`${sans.variable} ${mono.variable} ${pixel.variable}`}>
+      <body className="flex min-h-dvh flex-col">
+        <a
+          href="#main"
+          className="sr-only z-50 rounded-md bg-flint px-3 py-2 text-ground focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          Skip to content
+        </a>
+        <Backdrop />
+        <Header />
+        <main id="main" className="flex-1">
+          {children}
+        </main>
+        <Footer />
+        <Toaster />
       </body>
     </html>
   );

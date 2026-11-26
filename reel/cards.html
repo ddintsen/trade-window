@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Trade Window film cards</title>
+<!--
+  The film's cards: the opening story and the closing lines, in the site's
+  own type, colours and pieces (slots, item icons, the How it works panes,
+  the mark). cards.mjs loads this page, injects the fonts and pictures, and
+  calls render(t) for every frame of film time t; nothing here runs on a
+  clock of its own, so every render is the same.
+-->
+<style>
+  :root {
+    --ground: #0b0e0d; --ink: #e8eeeb; --muted: #9aa6a1; --maker: #f2b35c; --taker: #74d3da; --act: #8fdc78;
+    --maker-bg: #22190e; --taker-bg: #0e1e20;
+  }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: var(--ground); }
+  body { position: relative; color: var(--ink); font-family: "Instrument Sans", sans-serif; -webkit-font-smoothing: antialiased; }
+  .layer { position: absolute; inset: 0; }
+  #forest { background-size: cover; background-position: center; filter: blur(6px) brightness(0.42) saturate(0.9); transform: scale(1.04); }
+  #shade { background: linear-gradient(90deg, rgb(11 14 13 / 0.78) 0%, rgb(11 14 13 / 0.35) 55%, rgb(11 14 13 / 0.15) 100%); }
+  .px { font-family: "Handjet", sans-serif; font-weight: 640; font-variation-settings: "ELGR" 1, "ELSH" 2; letter-spacing: 0; }
+  .block { position: absolute; left: 272px; }
+  .big { font-size: 150px; line-height: 0.9; }
+  .mid { font-size: 104px; line-height: 0.98; }
+  .lead { font-size: 44px; line-height: 1.25; color: var(--muted); font-weight: 400; }
+  /* A word that rises into place from under its own line. */
+  .w { display: inline-block; overflow: hidden; vertical-align: top; padding: 0 0.04em 0.14em; margin: 0 -0.04em -0.14em; }
+  .w > i { display: inline-block; font-style: normal; will-change: transform; }
+  .maker { color: var(--maker); }
+  .taker { color: var(--taker); }
+  .act { color: var(--act); }
+  /* Slots, as in the trade window: a stepped well with the item's icon and its count. */
+  .notch { --n: 6px; clip-path: polygon(calc(var(--n) * 2) 0, calc(100% - var(--n) * 2) 0, calc(100% - var(--n) * 2) var(--n), calc(100% - var(--n)) var(--n), calc(100% - var(--n)) calc(var(--n) * 2), 100% calc(var(--n) * 2), 100% calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n) * 2) calc(100% - var(--n)), calc(100% - var(--n) * 2) 100%, calc(var(--n) * 2) 100%, calc(var(--n) * 2) calc(100% - var(--n)), var(--n) calc(100% - var(--n)), var(--n) calc(100% - var(--n) * 2), 0 calc(100% - var(--n) * 2), 0 calc(var(--n) * 2), var(--n) calc(var(--n) * 2), var(--n) var(--n), calc(var(--n) * 2) var(--n)); }
+  .side { position: absolute; top: 560px; display: flex; flex-direction: column; gap: 22px; }
+  .side .who { font-size: 56px; line-height: 1; }
+  .slots { display: flex; gap: 18px; }
+  .slab { padding: 22px; box-shadow: inset 0 5px 0 rgb(255 255 255 / 0.07), inset 5px 0 0 rgb(255 255 255 / 0.025), inset -5px 0 0 rgb(0 0 0 / 0.16), inset 0 -8px 0 rgb(0 0 0 / 0.32); }
+  .slot { position: relative; width: 210px; height: 210px; background: rgb(0 0 0 / 0.26) center / 190px no-repeat; box-shadow: inset 0 6px 0 rgb(0 0 0 / 0.34), inset 5px 0 0 rgb(0 0 0 / 0.14), inset 0 -3px 0 rgb(255 255 255 / 0.05); }
+  .slot b { position: absolute; right: 14px; bottom: 6px; font-size: 52px; font-weight: 640; text-shadow: 0 2px 0 rgb(0 0 0 / 0.95), 0 0 5px rgb(0 0 0 / 0.9), 0 0 12px rgb(0 0 0 / 0.5); }
+  #screen { position: absolute; left: 176px; top: 40px; width: 1440px; height: 810px; transform-origin: 0 0; transform: scale(1.0888889); }
+  #headline { position: absolute; left: 88px; top: 0; margin: 0; max-width: 11ch; font-size: 124.16px; line-height: 114.227px; text-wrap: balance; }
+  #panes { position: absolute; left: 272px; top: 560px; width: 1004px; }
+  #end-mark { position: absolute; left: 272px; top: 300px; width: 190px; }
+</style>
+</head>
+<body>
+  <div id="forest" class="layer"></div>
+  <div id="shade" class="layer"></div>
+
+  <!-- The opening story. -->
+  <div id="l1" class="block px big" style="top: 330px">You meet a trader<br>in the forest.</div>
+  <div id="l2a" class="block px mid" style="top: 170px"><span class="taker">He</span> has what you want.</div>
+  <div id="l2b" class="block px mid" style="top: 290px"><span class="maker">You</span> have what he wants.</div>
+  <div id="l3" class="block px big" style="top: 190px">So who sends first?</div>
+  <div id="l3b" class="block lead" style="top: 350px">Send first and hope, or pay someone to hold it.</div>
+  <div id="you" class="side" style="left: 272px">
+    <div class="who px maker">You</div>
+    <div class="slab notch" style="background: var(--maker-bg)"><div class="slots"><div id="s-coin" class="slot notch"><b class="px">10</b></div></div></div>
+  </div>
+  <div id="him" class="side" style="right: 272px; align-items: flex-end">
+    <div class="who px taker">Gnome trader</div>
+    <div class="slab notch" style="background: var(--taker-bg)"><div class="slots"><div id="s-crate" class="slot notch"><b class="px">25</b></div><div id="s-lantern" class="slot notch"><b class="px">#7</b></div></div></div>
+  </div>
+  <div id="l4" class="block px big" style="top: 330px">Nobody does.</div>
+  <div id="screen"><h1 id="headline" class="px">Nothing crosses until you are both ready</h1></div>
+
+  <!-- The closing lines. -->
+  <div id="t1" class="block px mid" style="top: 250px">The contract holds both sides.</div>
+  <div id="t2" class="block px mid" style="top: 250px">You can walk away until the swap.</div>
+  <div id="t3" class="block px mid" style="top: 250px">Not even the admin can move a deposit.</div>
+  <svg id="panes" viewBox="0 0 372 112"></svg>
+  <svg id="end-mark" viewBox="0 0 50 30"></svg>
+  <div id="e1" class="block px" style="top: 410px; font-size: 200px; line-height: 1">Trade Window</div>
+  <div id="e2" class="block lead" style="top: 640px">Try a practice room. Nothing touches a chain.</div>
+  <div id="e3" class="block px act" style="top: 712px; font-size: 64px; line-height: 1">tradewindow.xyz</div>
+
+<script>
+// ------------------------------------------------------------- pieces
+// The mark and the panes of How it works, drawn with the site's own construction.
+const GLASS = { maker: { rim: "#9A5E1C", core: "#F2B35C" }, taker: { rim: "#1E7880", core: "#74D3DA" } };
+const MAKER_CELLS = [[0, 0], [0, 1], [1, 1], [0, 2], [1, 2], [3, 2]];
+const TAKER_CELLS = [[3, 0], [4, 0], [3, 1], [4, 1], [4, 2], [1, 0]];
+function markCubes(cells, g) {
+  return cells.map(([c, r]) => {
+    const x = c * 10 + 0.6, y = r * 10 + 0.6, s = 8.8;
+    return `<rect x="${x}" y="${y}" width="${s}" height="${s}" rx="1.7" fill="${g.rim}"/><rect x="${x + 2.1}" y="${y + 2.1}" width="${s - 4.2}" height="${s - 4.2}" rx="1" fill="${g.core}"/>`;
+  }).join("");
+}
+document.getElementById("end-mark").innerHTML = markCubes(MAKER_CELLS, GLASS.maker) + markCubes(TAKER_CELLS, GLASS.taker);
+
+const PANE_W = 150, PANE_H = 112, SEAM = 72, UNIT = 34, GAP = 7;
+function stepped(x, y, w, h, n = 5) {
+  const r = x + w, b = y + h, m = n * 2;
+  return `M${x + m} ${y}H${r - m}V${y + n}H${r - n}V${y + m}H${r}V${b - m}H${r - n}V${b - n}H${r - m}V${b}H${x + m}V${b - n}H${x + n}V${b - m}H${x}V${y + m}H${x + n}V${y + n}H${x + m}Z`;
+}
+function paneCubes(list, ox) {
+  const cols = 3, rows = Math.max(1, Math.ceil(list.length / cols));
+  const gw = cols * UNIT + (cols - 1) * GAP, gh = rows * UNIT + (rows - 1) * GAP;
+  const x0 = ox + (PANE_W - gw) / 2, y0 = (PANE_H - gh) / 2;
+  return list.map((side, i) => {
+    const g = GLASS[side], x = x0 + (i % cols) * (UNIT + GAP), y = y0 + Math.floor(i / cols) * (UNIT + GAP);
+    return `<rect x="${x}" y="${y}" width="${UNIT}" height="${UNIT}" rx="6" fill="${g.rim}"/><rect x="${x + 7.5}" y="${y + 7.5}" width="${UNIT - 15}" height="${UNIT - 15}" rx="3.5" fill="${g.core}"/>`;
+  }).join("");
+}
+function panes(maker, taker, version) {
+  const tx = PANE_W + SEAM, cx = PANE_W + SEAM / 2;
+  return `<path d="${stepped(0, 0, PANE_W, PANE_H)}" fill="#22190e"/><path d="${stepped(tx, 0, PANE_W, PANE_H)}" fill="#0e1e20"/>`
+    + paneCubes(maker, 0) + paneCubes(taker, tx)
+    + `<text x="${cx}" y="30" text-anchor="middle" fill="#9aa6a1" font-size="15" font-family="Handjet">version</text>`
+    + `<text x="${cx}" y="62" text-anchor="middle" fill="#e8eeeb" font-size="36" font-weight="640" font-family="Handjet" style="font-variation-settings: 'ELSH' 2, 'ELGR' 1">${version}</text>`
+    + `<rect x="${cx - 22}" y="78" width="18" height="18" rx="4" fill="#242c29"/><rect x="${cx - 17.5}" y="82.5" width="9" height="9" rx="2" fill="#1a201e"/>`
+    + `<rect x="${cx + 4}" y="78" width="18" height="18" rx="4" fill="#242c29"/><rect x="${cx + 8.5}" y="82.5" width="9" height="9" rx="2" fill="#1a201e"/>`;
+}
+document.getElementById("panes").innerHTML = panes(["maker", "maker", "maker"], ["taker", "taker"], 6);
+
+// Split every line into words that can rise into place.
+for (const el of document.querySelectorAll(".px.big, .px.mid, #headline, .lead, #e1, #e3")) {
+  const walk = (node) => {
+    for (const child of [...node.childNodes]) {
+      if (child.nodeType === 3) {
+        const frag = document.createDocumentFragment();
+        child.textContent.split(/(\s+)/).forEach((part) => {
+          if (!part) return;
+          if (/^\s+$/.test(part)) frag.append(part);
+          else {
+            const w = document.createElement("span");
+            w.className = "w";
+            const i = document.createElement("i");
+            i.textContent = part;
+            w.append(i);
+            frag.append(w);
+          }
+        });
+        child.replaceWith(frag);
+      } else if (child.nodeType === 1 && child.tagName !== "BR") walk(child);
+    }
+  };
+  walk(el);
+}
+
+// ------------------------------------------------------------- timing
+const clamp = (u) => Math.min(1, Math.max(0, u));
+const out3 = (u) => 1 - Math.pow(1 - clamp(u), 3);
+const out4 = (u) => 1 - Math.pow(1 - clamp(u), 4);
+const $ = (id) => document.getElementById(id);
+
+/** Words rise from under their line one after another, then hold; the whole line is gone outside [from, to). */
+function words(id, from, to, { stagger = 0.07, dur = 0.7, fade = 0 } = {}) {
+  const el = $(id);
+  const on = t >= from - 0.001 && t < to;
+  el.style.visibility = on ? "visible" : "hidden";
+  if (!on) return;
+  el.style.opacity = fade ? String(1 - clamp((t - (to - fade)) / fade)) : "1";
+  el.querySelectorAll(".w > i").forEach((i, k) => {
+    const u = out4((t - from - k * stagger) / dur);
+    i.style.transform = `translateY(${(1 - u) * 105}%)`;
+  });
+}
+/** A piece arrives: up a little and in, on a long settle; no bounce. */
+function arrive(id, at, to = 1e9, { dy = 24, dur = 0.6, scale = 0.96, hold = 1 } = {}) {
+  const el = $(id);
+  const on = t >= at - 0.001 && t < to;
+  el.style.visibility = on ? "visible" : "hidden";
+  if (!on) return;
+  const u = out3((t - at) / dur);
+  el.style.opacity = String(u * hold);
+  el.style.transform = `translateY(${(1 - u) * dy}px) scale(${scale + (1 - scale) * u})`;
+}
+
+let t = 0;
+window.render = (time) => {
+  t = time;
+  // Ground: the forest at night behind the story, gone to plain ground for the headline.
+  let forest = 0;
+  if (t < 10) forest = out3(t / 0.8) * (1 - out3((t - 7.5) / 0.6));
+  else forest = out3((t - 63.35) / 0.6) * (1 - out3((t - 71.25) / 0.8) * 0.55);
+  $("forest").style.opacity = String(forest);
+  $("shade").style.opacity = String(forest);
+
+  // The opening story, a line a bar (96 BPM: a bar is 2.5 s).
+  words("l1", 0.15, 2.5);
+  words("l2a", 2.5, 5.0);
+  words("l2b", 3.75, 5.0);
+  words("l3", 5.0, 7.5, { stagger: 0.08 });
+  words("l3b", 6.25, 7.5, { stagger: 0.035, dur: 0.6 });
+  arrive("him", 2.62, 7.5);
+  arrive("you", 3.87, 7.5);
+  for (const [id, at] of [["s-crate", 2.7], ["s-lantern", 2.82], ["s-coin", 3.95]]) {
+    const u = out3((t - at) / 0.55);
+    $(id).style.opacity = String(u);
+    $(id).style.transform = `scale(${0.9 + 0.1 * u})`;
+  }
+  words("l4", 7.5, 8.1, { stagger: 0.09, dur: 0.45 });
+  // The headline assembles where it stands on the home page; the film dissolves into the site from 9.4.
+  words("headline", 8.1, 10.01, { stagger: 0.1, dur: 0.6 });
+
+  // The closing lines.
+  arrive("panes", 63.85, 71.25, { dy: 30, dur: 0.8, scale: 0.97, hold: t >= 66.25 && t < 68.75 ? 0.55 + 0.45 * (1 - out3((t - 66.25) / 0.5)) : t >= 68.75 ? 0.55 + 0.45 * out3((t - 68.75) / 0.5) : 1 });
+  words("t1", 63.75, 66.25);
+  words("t2", 66.25, 68.75);
+  words("t3", 68.75, 71.25);
+  arrive("end-mark", 71.35, 1e9, { dy: 16, dur: 0.6, scale: 0.94 });
+  words("e1", 71.5, 1e9, { stagger: 0.09, dur: 0.75 });
+  words("e2", 72.1, 1e9, { stagger: 0.03, dur: 0.6 });
+  words("e3", 72.6, 1e9, { stagger: 0.05, dur: 0.6 });
+  // The film's last half second fades to ground.
+  document.body.style.opacity = String(1 - clamp((t - 75.6) / 0.6));
+};
+
+/** Where the headline's words sit, to check them against the home page's own. */
+window.headlineWords = () => [...document.querySelectorAll("#headline .w > i")].map((i) => {
+  const r = document.createRange();
+  r.selectNodeContents(i);
+  const b = r.getBoundingClientRect();
+  return { text: i.textContent, x: b.x, y: b.y };
+});
+window.setHeadlineTop = (px) => ($("headline").style.top = `${px}px`);
+window.render(0);
+</script>
+</body>
+</html>

@@ -1,85 +1,249 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
+/* Glass panes at night. Direction and contrast table: docs/design/DIRECTION.md */
+@theme {
+  --color-ground: #0b0e0d;
+  --color-surface: #121715;
+  --color-control: #1a201e;
+  --color-field: #1c2321;
+  --color-raise: #242c29;
+  --color-well: #0e1311;
+  --color-ink: #e8eeeb;
+  --color-muted: #9aa6a1;
 
-:root {
-  /* Enforce Deep Dark Theme by default */
-  --accent: --alpha(var(--color-white) / 4%);
-  --accent-foreground: var(--color-neutral-100);
-  --background: #09090b; /* Deep premium dark */
-  --border: --alpha(var(--color-white) / 6%);
-  --card: #121217; /* Slightly lighter card */
-  --card-foreground: var(--color-neutral-100);
-  --destructive: color-mix(in srgb, var(--color-red-500) 90%, var(--color-white));
-  --destructive-foreground: var(--color-red-400);
-  --foreground: var(--color-neutral-100);
-  --info: var(--color-indigo-500);
-  --info-foreground: var(--color-indigo-400);
-  --input: --alpha(var(--color-white) / 8%);
-  --muted: --alpha(var(--color-white) / 4%);
-  --muted-foreground: color-mix(in srgb, var(--color-neutral-500) 90%, var(--color-white));
-  --popover: #121217;
-  --popover-foreground: var(--color-neutral-100);
-  --primary: var(--color-emerald-400); /* Emerald accent matching reference */
-  --primary-foreground: var(--color-neutral-950);
-  --ring: var(--color-emerald-400);
-  --secondary: --alpha(var(--color-white) / 4%);
-  --secondary-foreground: var(--color-neutral-100);
-  --success: var(--color-emerald-500);
-  --success-foreground: var(--color-emerald-400);
-  --warning: var(--color-amber-500);
-  --warning-foreground: var(--color-amber-400);
-}
+  --color-maker: #f2b35c;
+  --color-maker-fill: #9a5e1c;
+  --color-maker-bg: #22190e;
+  --color-maker-lit: #2e2112;
+  --color-taker: #74d3da;
+  --color-taker-fill: #1e7880;
+  --color-taker-bg: #0e1e20;
+  --color-taker-lit: #122b2e;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: "Inter", "Geist", Arial, Helvetica, sans-serif;
-  --color-warning-foreground: var(--warning-foreground);
-  --color-warning: var(--warning);
-  --color-success-foreground: var(--success-foreground);
-  --color-success: var(--success);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-ring: var(--ring);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-input: var(--input);
-  --color-info-foreground: var(--info-foreground);
-  --color-info: var(--info);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-destructive: var(--destructive);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-border: var(--border);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
+  /* The one action colour: getting ready, trading, opening, putting in.
+     Leaf green from the clearing, not 67's emerald. */
+  --color-act: #8fdc78;
+  --color-act-hover: #a8e995;
+
+  --color-flint: #e8eeeb;
+  --color-frost: #cdd6d2;
+  --color-alert: #f28b95;
+  --color-alert-bg: #2e1519;
+
+  --font-sans: var(--font-instrument), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SFMono-Regular", monospace;
+  --font-pixel: var(--font-handjet), var(--font-instrument), ui-sans-serif, sans-serif;
+
+  --ease-out-soft: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-move: cubic-bezier(0.76, 0, 0.24, 1);
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+  html {
+    color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-background text-foreground;
+    background: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.5;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-taker) 30%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-flint);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
   }
 }
 
-.animate-slow-pan {
-  animation: slowPan 15s ease-in-out infinite alternate;
+@layer utilities {
+  /* Code is shown word for word: no ligatures turning != into a symbol. */
+  .code {
+    font-family: var(--font-mono);
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0, "calt" 0;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .display {
+    font-stretch: 75%;
+    font-variation-settings: "wdth" 75;
+    letter-spacing: -0.02em;
+  }
+
+  /* Soft edges for the home scene, so the clearing fades into the page. */
+  .scene-mask {
+    -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 86%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, #000 12%, #000 78%, transparent 100%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(to right, transparent 0%, #000 16%, #000 86%, transparent 100%),
+      linear-gradient(to bottom, transparent 0%, #000 12%, #000 78%, transparent 100%);
+    mask-composite: intersect;
+  }
+
+  /* Display type and big numerals, as in 67: Handjet on its element grid. */
+  .font-pixel {
+    font-family: var(--font-pixel);
+    font-weight: 640;
+    font-variation-settings: "ELSH" 2, "ELGR" 1;
+    letter-spacing: 0;
+    line-height: 0.92;
+  }
+
+  /* A scene that dissolves into the page at the top and bottom; on wide
+     screens the lower fade runs under the panels that overlap it. */
+  .scene-band {
+    --fade-top: 6%;
+    --fade-bottom: 86%;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 var(--fade-top), #000 var(--fade-bottom), transparent 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 var(--fade-top), #000 var(--fade-bottom), transparent 100%);
+  }
+
+  @media (min-width: 1024px) {
+    .scene-band {
+      --fade-top: 11%;
+      --fade-bottom: 74%;
+    }
+  }
+
+  .text-shadow-scene {
+    text-shadow: 0 1px 2px rgb(0 0 0 / 0.9), 0 0 18px rgb(0 0 0 / 0.6);
+  }
+
+  /* A stack count over an item picture: a tight dark edge, like a game's. */
+  .text-shadow-count {
+    text-shadow: 0 1px 0 rgb(0 0 0 / 0.95), 0 0 3px rgb(0 0 0 / 0.9), 0 0 8px rgb(0 0 0 / 0.5);
+  }
+
+  .shell {
+    width: 100%;
+    max-width: 1360px;
+    margin-inline: auto;
+    padding-inline: clamp(16px, 4vw, 48px);
+  }
+
+  /* The game interface, built from the voxel world: blocks with stepped
+     pixel corners, raised slabs lit from above, slots cut into them, and
+     keys that sit on a darker base and press down. Depth is tone inside
+     the block, never an outline or a cast shadow. */
+
+  /* Stepped corners: two pixel steps, the edge of a voxel. */
+  .notch {
+    --n: 3px;
+    clip-path: polygon(
+      calc(var(--n) * 2) 0, calc(100% - var(--n) * 2) 0, calc(100% - var(--n) * 2) var(--n), calc(100% - var(--n)) var(--n),
+      calc(100% - var(--n)) calc(var(--n) * 2), 100% calc(var(--n) * 2), 100% calc(100% - var(--n) * 2), calc(100% - var(--n)) calc(100% - var(--n) * 2),
+      calc(100% - var(--n)) calc(100% - var(--n)), calc(100% - var(--n) * 2) calc(100% - var(--n)), calc(100% - var(--n) * 2) 100%, calc(var(--n) * 2) 100%,
+      calc(var(--n) * 2) calc(100% - var(--n)), var(--n) calc(100% - var(--n)), var(--n) calc(100% - var(--n) * 2), 0 calc(100% - var(--n) * 2),
+      0 calc(var(--n) * 2), var(--n) calc(var(--n) * 2), var(--n) var(--n), calc(var(--n) * 2) var(--n)
+    );
+  }
+  .notch-lg {
+    --n: 5px;
+  }
+
+  /* A slab: the panel a game window is made of, lit from above. */
+  .slab {
+    box-shadow:
+      inset 0 3px 0 rgb(255 255 255 / 0.07),
+      inset 3px 0 0 rgb(255 255 255 / 0.025),
+      inset -3px 0 0 rgb(0 0 0 / 0.16),
+      inset 0 -5px 0 rgb(0 0 0 / 0.32);
+  }
+
+  /* A well: a slot or a field cut into the slab. */
+  .well {
+    background-color: rgb(0 0 0 / 0.26);
+    box-shadow:
+      inset 0 4px 0 rgb(0 0 0 / 0.34),
+      inset 3px 0 0 rgb(0 0 0 / 0.14),
+      inset 0 -2px 0 rgb(255 255 255 / 0.05);
+  }
+
+  /* A key: a block on a darker base; pressing it pushes it down. */
+  .key {
+    box-shadow:
+      inset 0 2px 0 rgb(255 255 255 / 0.24),
+      inset 0 -5px 0 rgb(0 0 0 / 0.3);
+    transition: transform 80ms var(--ease-out-soft), filter 150ms, background-color 150ms, color 150ms;
+  }
+  .key:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+  .key:active:not(:disabled) {
+    transform: translateY(2px);
+    box-shadow:
+      inset 0 3px 0 rgb(0 0 0 / 0.22),
+      inset 0 -2px 0 rgb(0 0 0 / 0.22);
+  }
+
+  /* Focus inside a clipped block: an inner ring the corners cannot cut. */
+  .notch:focus-visible,
+  .notch-ring:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 3px var(--color-flint) !important;
+  }
 }
 
-@keyframes slowPan {
-  0% { transform: scale(1.05) translate(0%, 0%); }
-  50% { transform: scale(1.25) translate(-6%, 6%); }
-  100% { transform: scale(1.15) translate(4%, -4%); }
+/* A figure that changed arrives from just below, like a counter ticking. */
+@keyframes figure-in {
+  from {
+    transform: translateY(0.22em);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
 
-@keyframes shimmer {
-  100% { transform: translateX(100%); }
+.figure-in {
+  animation: figure-in 460ms var(--ease-out-soft) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
