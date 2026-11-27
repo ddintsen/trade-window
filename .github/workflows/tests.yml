@@ -1,0 +1,58 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  realms:
+    name: Gno realms
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: false
+
+      # The realms target the code Onyx runs: the chain/mainnet branch of gnolang/gno.
+      - name: Build gno from chain/mainnet
+        run: |
+          git clone --quiet --depth 1 --branch chain/mainnet https://github.com/gnolang/gno.git "$RUNNER_TEMP/gno"
+          echo "gno source: $(git -C "$RUNNER_TEMP/gno" rev-parse HEAD)"
+          (cd "$RUNNER_TEMP/gno" && go install ./gnovm/cmd/gno)
+          echo "GNOROOT=$RUNNER_TEMP/gno" >> "$GITHUB_ENV"
+
+      - name: Realm tests
+        run: bash scripts/gno/test-contracts.sh
+
+  web:
+    name: Web app
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
