@@ -2,6 +2,8 @@
 
 Swap GNOT, GRC20 tokens and NFTs with one counterparty on Gno.land. Nothing moves until both wallets lock the same version.
 
+[![Tests](https://github.com/ddintsen/trade-window/actions/workflows/tests.yml/badge.svg?branch=hackathon%2Fgnome-tavern-2026)](https://github.com/ddintsen/trade-window/actions/workflows/tests.yml)
+
 [Practice without a wallet](https://tradewindow.xyz/practice) · [Room 1 on Onyx](https://onyx.testnets.gno.land/r/nym-tradewindow001/rooms:room/1) · [Settlement receipt](https://rpc.onyx.testnets.gno.land/tx?hash=0xC01FD8BA64FFB440632CF51D21736152540D5A52876BD58842765F73435A06B6) · [66-second walkthrough](https://dintsen.agency/assets/videos/trade-window/walkthrough.mp4) · [Gnome Tavern entry](https://dorahacks.io/build/52030)
 
 [![Trade Window practice room showing both sides of an exchange before confirmation](docs/media/trade-window-walkthrough.png)](https://dintsen.agency/assets/videos/trade-window/walkthrough.mp4)
